@@ -27,6 +27,60 @@ pip install -r requirements.txt
 
 ---
 
+## 🚀 Uso Rápido
+
+### Opção 1: CLI (Interativo)
+
+```bash
+python main.py
+```
+
+Digite o ticker (ex: AAPL, PETR4.SA) e receba a análise completa.
+
+### Opção 2: API REST (Recomendado)
+
+```bash
+python -m uvicorn api:app --reload
+```
+
+Acesse a documentação interativa em: **http://localhost:8000/docs**
+
+### Opção 3: Cliente Python
+
+```bash
+python client_example.py
+```
+
+Menu interativo com 6 exemplos de uso.
+
+---
+
+## 🌐 API REST
+
+A API oferece endpoints para análise de ações:
+
+| Endpoint              | Método | Descrição                |
+| --------------------- | ------ | ------------------------ |
+| `/health`             | GET    | Status da API            |
+| `/valuation/{ticker}` | GET    | Preço justo              |
+| `/quality/{ticker}`   | GET    | Quality score            |
+| `/analyze/{ticker}`   | GET    | Análise completa         |
+| `/compare`            | GET    | Comparar múltiplas ações |
+
+### Exemplo de uso
+
+```bash
+# Análise completa
+curl http://localhost:8000/analyze/AAPL
+
+# Comparar ações
+curl "http://localhost:8000/compare?tickers=AAPL,MSFT,GOOGL"
+```
+
+📖 **Documentação completa**: [API.md](API.md)
+
+---
+
 ## 🎯 Como Funciona
 
 Este projeto utiliza dois engines principais:
@@ -193,35 +247,55 @@ Quality Score: 72.5/100
 
 ## 🚀 Uso Prático
 
-### Executar análise
+### Executar análise via CLI
 
 ```bash
 python main.py
 ```
 
-Exemplos:
+### Iniciar API REST
 
-```python
-# Analisar Apple
-ticker = "AAPL"
+```bash
+python -m uvicorn api:app --reload
+```
 
-# Analisar Petrobras
-ticker = "PETR4.SA"
+Acesse a documentação interativa em: **http://localhost:8000/docs**
+
+### Testar com cliente Python
+
+```bash
+python client_example.py
 ```
 
 ---
 
 ## 🏗️ Docker
 
-### Gerar imagem
+### Build local
+
+```bash
+docker build -t agent-fundament .
+docker run -p 8000:8000 agent-fundament
+```
+
+### Docker Compose (Recomendado)
+
+```bash
+docker-compose up
+```
+
+A API ficará disponível em: http://localhost:8000
+
+### Parar container
+
+```bash
+docker-compose down
+```
+
+### Gerar imagem para publicar
 
 ```bash
 docker buildx build --platform=linux/arm64/v8 -t maykealisson/agent-fundament:{{VERSION}} .
-```
-
-### Fazer push
-
-```bash
 docker push maykealisson/agent-fundament:{{VERSION}}
 ```
 
