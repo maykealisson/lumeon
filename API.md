@@ -146,15 +146,15 @@ print(f"Preço Atual: ${data['current_price']}")
 
 **GET** `/quality/{ticker}`
 
-Calcula o score de qualidade fundamental (0-100).
+Calcula o score de qualidade fundamental (0-100) com base em 10 critérios essenciais.
 
 **Resposta:**
 
 ```json
 {
   "ticker": "AAPL",
-  "score": 85.5,
-  "interpretation": "👑 EXCELENTE - Empresa de qualidade comprovada",
+  "score": 72.5,
+  "interpretation": "✓ Empresa com +5 anos em Bolsa",
   "metrics": {
     "roe": 0.85,
     "current_ratio": 1.54,
@@ -165,13 +165,46 @@ Calcula o score de qualidade fundamental (0-100).
 }
 ```
 
+**Critérios Avaliados:**
+
+O score leva em consideração 10 pontos fundamentais:
+
+1. **Empresa com mais de 5 anos em Bolsa** - 5% da pontuação
+2. **Nunca deu prejuízo (ano fiscal)** - Incluso na profitabilidade
+3. **Lucro nos últimos 20 trimestres (5 anos)** - 20% da pontuação
+4. **Pagou +5% de dividendos/ano (últimos 5 anos)** - 10% da pontuação
+5. **ROE acima de 10%** - 15% da pontuação
+6. **Dívida menor que patrimônio** - 10% da pontuação
+7. **Crescimento de receita (últimos 5 anos)** - 10% da pontuação
+8. **Crescimento de lucros (últimos 5 anos)** - 15% da pontuação
+9. **Liquidez diária acima de US$ 2M** - 5% da pontuação
+10. **Liquidez corrente (current ratio)** - 5% da pontuação
+
 **Interpretação do Score:**
 
-- **85-100**: 👑 EXCELENTE
-- **70-85**: ✓✓ MUITO BOM
-- **50-70**: ✓ BOM
-- **30-50**: ⚠️ FRACO
-- **0-30**: ❌ PÉSSIMO
+- **85-100**: 👑 EXCELENTE - Empresa excelente, qualidade comprovada
+- **70-85**: ✓✓ MUITO BOM - Boa empresa, fundamentals sólidos
+- **50-70**: ✓ BOM - Empresa aceitável, alguns pontos de atenção
+- **30-50**: ⚠️ FRACO - Empresa com problemas, evitar
+- **0-30**: ❌ PÉSSIMO - Alto risco, não comprar
+
+**Campo "interpretation":**
+
+O campo retorna o **maior ponto positivo** ou o **maior alerta** identificado na análise:
+
+- Se houver alertas: exibe o alerta mais crítico
+- Se não houver alertas: exibe o maior ponto positivo
+
+**Exemplo de Interpretações:**
+
+```
+✓ Empresa com +5 anos em Bolsa
+✓ ROE acima de 20%
+❌ Risco de insolvência (Current Ratio: 0.71)
+⚠️ Sem histórico de dividendos recentes ou yield = 0
+✓ Receita em crescimento nos últimos 5 anos (+40%)
+✓ Lucro em crescimento nos últimos 5 anos (+87%)
+```
 
 **cURL:**
 

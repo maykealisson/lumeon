@@ -136,21 +136,55 @@ Buy Price = Fair Value × 0.60  (40% de desconto para margem de segurança)
 
 ---
 
-### 2️⃣ **Quality Score** - Avaliação Fundamentalista (0-100)
+### 2️⃣ **Quality Score v2.0** - Avaliação Fundamentalista (0-100)
 
-Pontuação integrada que mede a qualidade fundamental da empresa em 5 dimensões:
+Pontuação integrada que mede a qualidade fundamental da empresa em **10 critérios essenciais** com ponderação científica:
 
-| Métrica             | Peso | O que avalia                                                             |
-| ------------------- | ---- | ------------------------------------------------------------------------ |
-| **ROE**             | 25%  | Rentabilidade do patrimônio (quanto lucra com o dinheiro dos acionistas) |
-| **Liquidez**        | 20%  | Current Ratio (consegue pagar contas no curto prazo?)                    |
-| **Endividamento**   | 20%  | Debt/Equity (qual proporção de dívida vs patrimônio?)                    |
-| **Margem de Lucro** | 15%  | Quanto lucra em cada real vendido?                                       |
-| **Crescimento**     | 10%  | Revenue Growth (receita está crescendo?)                                 |
+| #   | Critério                   | Peso | O que avalia                                        |
+| --- | -------------------------- | ---- | --------------------------------------------------- |
+| 1   | **Tempo em Bolsa**         | 5%   | Empresa listada há +5 anos (experiência)            |
+| 2   | **Profitabilidade**        | 20%  | Lucro em todos os últimos 20 trimestres (5 anos)    |
+| 3   | **Crescimento de Lucros**  | 15%  | Lucros crescentes nos últimos 5 anos (tendência)    |
+| 4   | **Crescimento de Receita** | 10%  | Receita crescente nos últimos 5 anos (expansão)     |
+| 5   | **Dividendos**             | 10%  | Yield >5% a.a. nos últimos 5 anos (rentabilidade)   |
+| 6   | **ROE**                    | 15%  | Rentabilidade do patrimônio >10% (eficiência)       |
+| 7   | **Dívida/Patrimônio**      | 10%  | Dívida < patrimônio (alavancagem controlada)        |
+| 8   | **Liquidez Diária**        | 5%   | Volume >US$ 2M/dia (facilita compra/venda)          |
+| 9   | **Liquidez Corrente**      | 5%   | Current Ratio adequado (paga contas no curto prazo) |
+| 10  | **Margem de Lucro**        | 5%   | Quanto lucra em cada real vendido (eficiência)      |
 
-#### **Critérios de Pontuação por Métrica**
+#### **Critérios de Pontuação Detalhados**
 
-**ROE (Retorno sobre Patrimônio)**
+**1. Tempo em Bolsa (5%)**
+
+- ≥ 5 anos: 100 pontos ✓
+- < 5 anos: 30 pontos (empresa jovem)
+
+**2. Profitabilidade (20%)**
+
+- Lucrativa em todos os 20Q: 100 pontos ⭐
+- Lucrativa em 18-19Q: 80 pontos
+- Lucrativa em 15-17Q: 60 pontos
+- Lucrativa em <15Q: 30 pontos ❌
+
+**3. Crescimento de Lucros (15%)**
+
+- Lucro crescente 5Y: 100 pontos ⭐
+- Lucro estagnado/decrescente: 20 pontos ❌
+
+**4. Crescimento de Receita (10%)**
+
+- Receita crescente 5Y: 100 pontos ⭐
+- Receita estagnada/decrescente: 20 pontos ❌
+
+**5. Dividendos (10%)**
+
+- Yield ≥ 5% a.a.: 100 pontos ✓✓
+- Yield 3-5%: 70 pontos ✓
+- Yield < 3%: 40 pontos
+- Sem dividendos: 20 pontos ❌
+
+**6. ROE (15%) - Retorno sobre Patrimônio**
 
 - > 20%: 100 pontos ⭐⭐⭐
 - 15% - 20%: 85 pontos ⭐⭐
@@ -158,37 +192,60 @@ Pontuação integrada que mede a qualidade fundamental da empresa em 5 dimensõe
 - 5% - 10%: 50 pontos
 - < 5%: 20 pontos ❌
 
-**Current Ratio (Liquidez)**
+**7. Dívida/Patrimônio (10%)**
 
-- ≥ 2.0: 100 pontos (excelente saúde de caixa)
+- < 50%: 100 pontos (excelente)
+- 50% - 100%: 85 pontos ✓
+- 100% - 150%: 50 pontos ⚠️
+- > 150%: 20 pontos ❌❌
+
+**8. Liquidez Diária (5%)**
+
+- > US$ 2M/dia: 100 pontos ✓
+- US$ 500K - 2M: 70 pontos
+- < US$ 500K: 30 pontos ⚠️
+
+**9. Current Ratio (5%) - Liquidez Corrente**
+
+- ≥ 2.0: 100 pontos (excelente)
 - 1.5 - 2.0: 85 pontos
-- 1.0 - 1.5: 70 pontos (saudável)
-- 0.8 - 1.0: 40 pontos ⚠️ (risco)
-- < 0.8: 10 pontos ❌❌ (pode falir)
+- 1.0 - 1.5: 70 pontos ✓
+- 0.8 - 1.0: 40 pontos ⚠️
+- < 0.8: 10 pontos ❌❌
 
-**Debt/Equity (Alavancagem)**
+**10. Margem de Lucro (5%)**
 
-- < 30%: 100 pontos (muito conservadora)
-- 30% - 50%: 85 pontos
-- 50% - 100%: 70 pontos (normal)
-- 100% - 150%: 40 pontos ⚠️ (endividada)
-- > 150%: 10 pontos ❌❌ (alta exposição ao risco)
-
-**Margem de Lucro**
-
-- > 20%: 100 pontos (excelente eficiência)
+- > 20%: 100 pontos ⭐
 - 15% - 20%: 85 pontos
 - 10% - 15%: 70 pontos
 - 5% - 10%: 50 pontos
-- < 5%: 20 pontos (margem apertada)
+- < 5%: 20 pontos ❌
 
-**Revenue Growth (Crescimento)**
+#### **Campo "Interpretation" - Insights Inteligentes**
 
-- > 20%: 100 pontos (crescimento forte)
-- 10% - 20%: 85 pontos
-- 5% - 10%: 70 pontos
-- 0% - 5%: 50 pontos (crescimento lento)
-- < 0%: 30 pontos ❌ (estagnação/queda)
+O sistema retorna o **maior ponto positivo OU o maior alerta** específico da empresa:
+
+**Exemplos de Interpretações Positivas:**
+
+```
+✓ Empresa com +5 anos em Bolsa
+✓ ROE acima de 20%
+✓ Dívida menor que 50% do patrimônio
+✓ Receita em crescimento nos últimos 5 anos (+40%)
+✓ Lucro em crescimento nos últimos 5 anos (+87%)
+✓ Liquidez diária alta ($1,500M)
+```
+
+**Exemplos de Alertas:**
+
+```
+❌ Risco de insolvência (Current Ratio: 0.71)
+⚠️ ROE baixo (6.8%)
+⚠️ Margem de lucro baixa (7.3%)
+⚠️ Sem histórico de dividendos recentes
+❌ Receita decrescente ou estagnada
+❌ Lucro decrescente ou instável
+```
 
 #### **Penalizações Severas**
 
@@ -196,6 +253,15 @@ Se a empresa tem:
 
 - Current Ratio < 0.8 **OU** Debt/Equity > 200%
 - → Score máximo fica **limitado a 35 pontos** (alto risco de solvência)
+
+#### **Dados Coletados Automaticamente**
+
+O sistema coleta dados históricos via yfinance:
+
+- ✅ **5 anos de dados anuais**: receita, lucro líquido
+- ✅ **20 trimestres de dados**: profitabilidade trimestral
+- ✅ **Histórico de dividendos**: yield calculation
+- ✅ **Dados de mercado**: IPO date, volume diário, preço
 
 ---
 
@@ -223,15 +289,20 @@ Quality Score: 72.5/100
 | $160        | $148       | **VENDA** 🔴        | 8% acima = Sobrepreço            |
 | $200        | $148       | **VENDA FORTE** 🔴  | 35% acima = Bolha                |
 
-### **Interpretação do Quality Score**
+### **Interpretação do Quality Score v2.0**
 
 ```
-85-100  👑 EXCELENTE    Empresa de qualidade comprovada (Apple, Coca-Cola)
-70-85   ✓✓ MUITO BOM    Boa empresa, fundamentals sólidos
+85-100  👑 EXCELENTE    Empresa excelente com fundamentals robustos (Apple, Microsoft)
+70-85   ✓✓ MUITO BOM    Boa empresa, qualidade comprovada
 50-70   ✓  BOM          Empresa aceitável, alguns pontos de atenção
-30-50   ⚠️ FRACO        Empresa com problemas, evitar
-0-30    ❌ PÉSSIMO      Alto risco, não comprar
+30-50   ⚠️ FRACO        Empresa com problemas significativos, avaliar bem
+0-30    ❌ PÉSSIMO      Alto risco, evitar
 ```
+
+**Campo "interpretation":**
+
+- Se houver alertas críticos: exibe o alerta principal (ex: "❌ Risco de insolvência")
+- Se houver apenas pontos positivos: exibe o principal diferencial (ex: "✓ ROE acima de 20%")
 
 ### **Estratégia de Decisão**
 
@@ -265,6 +336,16 @@ Acesse a documentação interativa em: **http://localhost:8000/docs**
 
 ```bash
 python client_example.py
+```
+
+### Testar novo sistema de score
+
+```bash
+# Teste direto do score engine com múltiplas ações
+python test_new_score.py
+
+# Teste de integração da API completa
+python test_api_integration.py
 ```
 
 ---
@@ -311,6 +392,19 @@ docker push maykealisson/agent-fundament:{{VERSION}}
 
 ---
 
-## ⚠️ Disclaimer
+## 🎉 Novidades v2.0
+
+**Quality Score System Melhorado:**
+
+- ✅ Aumentado de 5 para **10 critérios** de avaliação
+- ✅ Coleta automática de **dados históricos de 5 anos**
+- ✅ Campo "interpretation" retorna **insights específicos** (maior positivo ou maior alerta)
+- ✅ Análise de **20 trimestres** de profitabilidade
+- ✅ Avaliação de **tendências de crescimento**
+- ✅ Cálculo de **dividend yield** em 5 anos
+
+**Veja:** [IMPROVEMENTS.md](IMPROVEMENTS.md) para detalhes técnicos das mudanças.
+
+---
 
 Esta ferramenta fornece análise fundamentalista educacional. Não é recomendação de investimento. Sempre consulte um assessor financeiro antes de tomar decisões de investimento.

@@ -114,7 +114,7 @@ async def get_quality_score(ticker: str):
     
     **Retorna:**
     - Score: 0-100 pontos
-    - Interpretation: Classificação (Péssimo até Excelente)
+    - Interpretation: Maior ponto positivo ou maior alerta
     - Metrics: Detalhamento de cada métrica
     """
     try:
@@ -127,19 +127,13 @@ async def get_quality_score(ticker: str):
                 detail=f"Ticker '{ticker}' não encontrado"
             )
         
-        score = quality_score(stock.info)
+        score, criteria_results, top_positive, top_alert = quality_score(stock.info, ticker)
         
-        # Interpretação
-        if score >= 85:
-            interpretation = "👑 EXCELENTE - Empresa de qualidade comprovada"
-        elif score >= 70:
-            interpretation = "✓✓ MUITO BOM - Boa empresa, fundamentals sólidos"
-        elif score >= 50:
-            interpretation = "✓ BOM - Empresa aceitável, alguns pontos de atenção"
-        elif score >= 30:
-            interpretation = "⚠️ FRACO - Empresa com problemas, evitar"
+        # Interpretação: maior ponto positivo OU maior alerta
+        if top_alert:
+            interpretation = f"{top_alert}"
         else:
-            interpretation = "❌ PÉSSIMO - Alto risco, não comprar"
+            interpretation = top_positive
         
         # Métricas
         metrics = {
@@ -198,18 +192,13 @@ async def analyze_stock(ticker: str):
         }
         
         # Quality Score
-        score = quality_score(stock.info)
+        score, criteria_results, top_positive, top_alert = quality_score(stock.info, ticker)
         
-        if score >= 85:
-            score_interpretation = "👑 EXCELENTE - Empresa de qualidade comprovada"
-        elif score >= 70:
-            score_interpretation = "✓✓ MUITO BOM - Boa empresa, fundamentals sólidos"
-        elif score >= 50:
-            score_interpretation = "✓ BOM - Empresa aceitável, alguns pontos de atenção"
-        elif score >= 30:
-            score_interpretation = "⚠️ FRACO - Empresa com problemas, evitar"
+        # Interpretação: maior ponto positivo OU maior alerta
+        if top_alert:
+            score_interpretation = f"{top_alert}"
         else:
-            score_interpretation = "❌ PÉSSIMO - Alto risco, não comprar"
+            score_interpretation = top_positive
         
         quality = {
             "ticker": ticker,
@@ -278,7 +267,7 @@ async def compare_stocks(tickers: str = Query(..., description="Tickers separado
             
             engine = ValuationEngine(ticker)
             valuation_result = engine.run()
-            score = quality_score(stock.info)
+            score, _, _, _ = quality_score(stock.info, ticker)
             current_price = stock.info.get("currentPrice", 0)
             
             results.append({
