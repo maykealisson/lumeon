@@ -37,8 +37,11 @@ pip install -r requirements.txt
 
 ```bash
 source .venv/bin/activate
+cp .env.example .env   # só na primeira vez; preencha MYSQL_PASSWORD
 python -m uvicorn api:app --reload
 ```
+
+> O MySQL do liberty precisa estar de pé: a API cria o banco `fundament` e as tabelas na subida.
 
 Saída esperada:
 
@@ -104,6 +107,10 @@ Base URL local: `http://localhost:8000`
 | `/quality/{ticker}`   | GET    | Quality score (0-100)              |
 | `/analyze/{ticker}`   | GET    | Valuation + quality + recomendação |
 | `/compare?tickers=`   | GET    | Compara até 10 ações lado a lado   |
+| `/ativos/{ticker}/analises` | POST | Envia uma análise em Markdown (.md) e grava no banco |
+| `/ativos/{ticker}/analises` | GET | Lista as análises gravadas do ticker |
+| `/ativos/{ticker}/relatorio` | GET | Processa as análises gravadas + cotação de hoje |
+| `/analises/{id}`      | GET / DELETE | Detalhe completo / remoção de uma análise |
 
 **Tickers:** ações americanas usam o símbolo puro (`AAPL`, `MSFT`); ações brasileiras usam o sufixo `.SA` (`PETR4.SA`, `ITUB4.SA`).
 
@@ -206,9 +213,105 @@ Tickers inválidos na comparação aparecem como `{"ticker": "XXX", "error": "N�
 
 ---
 
+## 📝 Análises em Markdown
+
+O front (tela de detalhe do ativo) envia, via gateway, o conteúdo de um arquivo de análise no
+formato `TICKER_AAAA-MM-DD.md`: frontmatter YAML (`schema_version: 1`) seguido do texto da análise.
+Exemplo completo em [`tests/fixtures/ITSA4_2026-10-29.md`](tests/fixtures/ITSA4_2026-10-29.md).
+
+### Banco de dados
+
+Usa o **mesmo servidor MySQL do liberty** (`liberty/docker-compose.yaml`), mas em um banco próprio,
+`fundament`. Na subida, a API cria o banco (`CREATE DATABASE IF NOT EXISTS`) e as tabelas que faltarem;
+o MySQL precisa estar de pé e o usuário precisa ter permissão de criar banco (o `root` tem).
+
+Configuração por variáveis de ambiente (veja [`.env.example`](.env.example)):
+
+| Variável | Padrão |
+| --- | --- |
+| `MYSQL_HOST` | `localhost` (no Docker Compose: `host.docker.internal`) |
+| `MYSQL_PORT` | `3306` |
+| `MYSQL_USER` | `root` |
+| `MYSQL_PASSWORD` | vazio — use a mesma senha do MySQL do liberty |
+| `MYSQL_DATABASE` | `fundament` |
+| `DATABASE_URL` | opcional; URL completa do SQLAlchemy, tem precedência |
+
+```bash
+cp .env.example .env   # preencha MYSQL_PASSWORD (o .env é lido automaticamente)
+python -m uvicorn api:app --reload
+```
+
+Não há ferramenta de migração: `create_all` só cria tabelas novas. Se mudar colunas de uma tabela
+existente, altere o banco manualmente (ou recrie o banco `fundament`).
+
+| Tabela | Conteúdo |
+| --- | --- |
+| `analise` | Uma linha por ticker + `data_analise`: preço, valor intrínseco, margem, vereditos, nota do checklist, tese, texto de mudanças e o `.md` original |
+| `analise_indicador` | Indicadores não nulos dos grupos `indicadores` e `setor_financeiro` |
+| `analise_historico` | Série anual (`historico`) |
+| `analise_checklist` | Respostas do checklist |
+| `analise_ponto` | Itens do corpo: `POSITIVO`, `ATENCAO`, `RISCO`, `GATILHO_SAIDA`, `CONFERIR` |
+| `analise_fonte` | URLs das fontes |
+
+Reenviar o mesmo ticker com a mesma `data_analise` substitui o registro anterior.
+
+### `POST /ativos/{ticker}/analises`
+
+```json
+{ "conteudo": "---\nschema_version: 1\nticker: ITSA4\n...", "nome_arquivo": "ITSA4_2026-10-29.md" }
+```
+
+Retorna `201` com o resumo e `substituida: true|false`. Retorna `422` se o arquivo não tiver
+frontmatter, `ticker` ou `data_analise`, ou se o ticker do arquivo for diferente do da URL.
+
+### `GET /ativos/{ticker}/relatorio?margem_desejada=20`
+
+Usa a análise mais recente (e as anteriores, para evolução) e busca a cotação de hoje no Yahoo
+Finance (o sufixo `.SA` é adicionado quando a moeda é BRL). Principais blocos da resposta:
+
+- `preco`: atual, da análise, variação desde a análise, mínima/máxima de 52 semanas.
+- `preco_justo`: valor intrínseco da análise, margem de segurança no preço de hoje
+  (`1 − preço / valor intrínseco`), preço teto para a margem desejada, Graham, Bazin (DY 6%) e o
+  valuation quantitativo das engines do projeto.
+- `recomendacao`: `COMPRAR`, `ACUMULAR_COM_CAUTELA`, `AGUARDAR`, `CARO` ou `EVITAR`.
+- `value_investing`: P/L, P/VP, DY e earnings yield da análise reajustados pelo preço de hoje,
+  prêmio sobre a taxa de juros, ROE/ROIC contra o custo de capital, payout, CAGR, dívida.
+- `pontos_positivos` / `pontos_atencao`: os da análise (`origem: analise`) mais os gerados no
+  processamento (`origem: processamento`), como preço acima do justo ou análise desatualizada.
+- `riscos`, `gatilhos_saida`, `dados_a_conferir`, `comparacao_anterior`, `evolucao`, `historico`.
+- `avisos`: falhas parciais (ex: sem cotação; nesse caso usa o preço da análise).
+
+> Os dividendos do yfinance para ações brasileiras são pouco confiáveis, por isso DY e Bazin vêm da análise.
+
+---
+
+## 🐳 Imagem Docker (produção)
+
+Em produção a API sobe pelo `docker-compose.yaml` do **liberty** (serviço `agent-fundament`), na mesma
+rede do MySQL (`MYSQL_HOST=mysql`). O gateway acessa via `URL_AGENT_FUNDAMENT=http://agent-fundament:8000`.
+
+### Gerando imagem
+
+```bash
+docker buildx build --platform=linux/arm64/v8 -t maykealisson/agent-fundament:{VERSION} .
+```
+
+### Subindo imagem
+
+```bash
+docker push maykealisson/agent-fundament:{VERSION}
+```
+
+Ao publicar uma versão nova, atualize a tag em `liberty/docker-compose.yaml`.
+
+---
+
 ## 🧪 Testes
 
 ```bash
+# Testes automatizados (parser, banco e relatório; sem acesso à internet)
+python -m pytest tests
+
 # Score engine com múltiplas ações
 python test_new_score.py
 

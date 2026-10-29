@@ -1,15 +1,28 @@
-from fastapi import FastAPI, HTTPException, Query
+from contextlib import asynccontextmanager
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+from typing import Optional, Dict, Any, List
 import yfinance as yf
 from valuation_engine import ValuationEngine
 from score_engine import quality_score
+from database import get_session, init_db
+from analise_parser import AnaliseInvalidaError, parse_analise
+import analise_service
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
 
 app = FastAPI(
     title="Agent Fundament API",
     description="API para análise fundamentalista de ações",
-    version="1.0.0"
+    version="1.1.0",
+    lifespan=lifespan,
 )
 
 # CORS para aceitar requisições de qualquer origem
@@ -50,6 +63,32 @@ class AnalysisResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     message: str
+
+
+class AnaliseUploadRequest(BaseModel):
+    conteudo: str = Field(..., min_length=1, max_length=500_000, description="Conteúdo do arquivo .md da análise")
+    nome_arquivo: Optional[str] = Field(None, max_length=255)
+
+
+class AnaliseResumoResponse(BaseModel):
+    id: int
+    ticker: str
+    empresa: Optional[str]
+    data_analise: str
+    periodo_referencia: Optional[str]
+    preco: Optional[float]
+    valor_intrinseco: Optional[float]
+    margem_seguranca: Optional[float]
+    nota_checklist: Optional[float]
+    veredito_qualidade: Optional[str]
+    veredito_preco: Optional[str]
+    tese: Optional[str]
+    nome_arquivo: Optional[str]
+    criado_em: Optional[str]
+
+
+class AnaliseUploadResponse(AnaliseResumoResponse):
+    substituida: bool = Field(description="True quando já existia análise do ticker nessa data e ela foi substituída")
 
 
 # ============ ENDPOINTS ============
@@ -288,6 +327,68 @@ async def compare_stocks(tickers: str = Query(..., description="Tickers separado
             results.append({"ticker": ticker, "error": str(e)})
     
     return {"comparison": results}
+
+
+# ============ ANÁLISES ENVIADAS (.md) ============
+
+@app.post("/ativos/{ticker}/analises", response_model=AnaliseUploadResponse, status_code=201, tags=["Análises"])
+def enviar_analise(ticker: str, request: AnaliseUploadRequest, session: Session = Depends(get_session)):
+    """
+    Recebe o conteúdo de um arquivo de análise (.md com frontmatter YAML), extrai as
+    informações e grava no banco. Cada data de análise gera um registro; reenviar o
+    mesmo ticker + data substitui o registro anterior.
+    """
+    try:
+        dados = parse_analise(request.conteudo)
+    except AnaliseInvalidaError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    if dados.ticker != ticker.upper():
+        raise HTTPException(
+            status_code=422,
+            detail=f"O arquivo é do ticker {dados.ticker}, mas foi enviado para {ticker.upper()}",
+        )
+    analise, substituida = analise_service.salvar_analise(session, dados, request.conteudo, request.nome_arquivo)
+    return {**analise_service.resumo(analise), "substituida": substituida}
+
+
+@app.get("/ativos/{ticker}/analises", response_model=List[AnaliseResumoResponse], tags=["Análises"])
+def listar_analises(ticker: str, session: Session = Depends(get_session)):
+    """Lista as análises gravadas do ticker, da mais recente para a mais antiga."""
+    return [analise_service.resumo(a) for a in analise_service.listar_analises(session, ticker)]
+
+
+@app.get("/ativos/{ticker}/relatorio", tags=["Análises"])
+def gerar_relatorio(
+    ticker: str,
+    margem_desejada: float = Query(20.0, ge=0, le=90, description="Margem de segurança exigida (%)"),
+    session: Session = Depends(get_session),
+):
+    """
+    Processa as análises gravadas do ticker junto com os dados de mercado de hoje:
+    preço atual, preço justo, margem de segurança, múltiplos no preço atual,
+    pontos positivos e de atenção, riscos, gatilhos de saída e evolução entre análises.
+    """
+    relatorio = analise_service.gerar_relatorio(session, ticker, margem_desejada)
+    if relatorio is None:
+        raise HTTPException(status_code=404, detail=f"Nenhuma análise cadastrada para {ticker.upper()}")
+    return relatorio
+
+
+@app.get("/analises/{analise_id}", tags=["Análises"])
+def detalhar_analise(analise_id: int, session: Session = Depends(get_session)):
+    """Todos os dados extraídos de uma análise."""
+    analise = analise_service.buscar_analise(session, analise_id)
+    if analise is None:
+        raise HTTPException(status_code=404, detail="Análise não encontrada")
+    return analise_service.detalhe(analise)
+
+
+@app.delete("/analises/{analise_id}", status_code=204, tags=["Análises"])
+def remover_analise(analise_id: int, session: Session = Depends(get_session)):
+    analise = analise_service.buscar_analise(session, analise_id)
+    if analise is None:
+        raise HTTPException(status_code=404, detail="Análise não encontrada")
+    analise_service.remover_analise(session, analise)
 
 
 # ============ EXECUÇÃO ============
