@@ -234,6 +234,8 @@ async def analyze_stock(ticker: str):
             "quality": quality,
             "recommendation": recommendation
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

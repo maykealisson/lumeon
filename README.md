@@ -1,51 +1,89 @@
 # Agent Fundament - Análise Fundamentalista de Investimentos
 
-Ferramenta para análise fundamentalista de ações com cálculo de preço justo (Fair Value) e score de qualidade baseado em métricas reais de mercado.
+Ferramenta para análise fundamentalista de ações com cálculo de preço justo (Fair Value) e score de qualidade baseado em métricas reais de mercado (dados via [yfinance](https://github.com/ranaroussi/yfinance)).
+
+Pode ser usada de três formas: **API REST** (FastAPI), **CLI interativo** ou **cliente Python**.
 
 ---
 
-## 📋 Configuração Inicial
+## 📦 Pré-requisitos
 
-### Criar ambiente virtual
+| Ferramenta         | Versão  | Observação                                            |
+| ------------------ | ------- | ----------------------------------------------------- |
+| Python             | 3.11+   | Testado com 3.12.2 (pyenv)                            |
+| Docker + Compose   | recente | Apenas se for subir via Docker                        |
+| Acesso à internet  | —       | Os dados vêm do Yahoo Finance em tempo real           |
+
+---
+
+## ⚙️ Configuração local
 
 ```bash
+# 1. Criar o ambiente virtual (só na primeira vez)
 python -m venv .venv
+
+# 2. Ativar o ambiente (toda vez que abrir um terminal novo)
 source .venv/bin/activate
-```
 
-### Ativar ambiente (toda vez que for usar o projeto)
-
-```bash
-source .venv/bin/activate
-```
-
-### Instalar dependências
-
-```bash
+# 3. Instalar / atualizar dependências (repita sempre que o requirements.txt mudar)
 pip install -r requirements.txt
 ```
 
 ---
 
-## 🚀 Uso Rápido
+## 🚀 Subindo o projeto
 
-### Opção 1: CLI (Interativo)
+### Opção 1: API REST local (recomendado para desenvolvimento)
+
+```bash
+source .venv/bin/activate
+python -m uvicorn api:app --reload
+```
+
+Saída esperada:
+
+```
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Application startup complete.
+```
+
+- Swagger (documentação interativa): **http://localhost:8000/docs**
+- ReDoc: **http://localhost:8000/redoc**
+
+Para usar outra porta: `python -m uvicorn api:app --reload --port 8001`.
+
+### Opção 2: Docker Compose
+
+```bash
+docker compose up --build
+```
+
+Sobe a API em http://localhost:8000.
+
+> Use `--build` sempre que o `requirements.txt` mudar: o código é montado como volume, mas as dependências ficam na imagem.
+
+```bash
+docker compose down   # parar
+```
+
+### Opção 3: Docker sem Compose
+
+```bash
+docker build -t agent-fundament .
+docker run -p 8000:8000 agent-fundament
+```
+
+### Opção 4: CLI interativo
 
 ```bash
 python main.py
 ```
 
-Digite o ticker (ex: AAPL, PETR4.SA) e receba a análise completa.
+Digite o ticker (ex: `AAPL`, `PETR4.SA`) e receba a análise completa no terminal.
 
-### Opção 2: API REST (Recomendado)
+### Opção 5: Cliente Python de exemplo
 
-```bash
-python -m uvicorn api:app --reload
-```
-
-Acesse a documentação interativa em: **http://localhost:8000/docs**
-
-### Opção 3: Cliente Python
+Com a API rodando:
 
 ```bash
 python client_example.py
@@ -55,29 +93,170 @@ Menu interativo com 6 exemplos de uso.
 
 ---
 
-## 🌐 API REST
+## 🌐 Endpoints
 
-A API oferece endpoints para análise de ações:
+Base URL local: `http://localhost:8000`
 
-| Endpoint              | Método | Descrição                |
-| --------------------- | ------ | ------------------------ |
-| `/health`             | GET    | Status da API            |
-| `/valuation/{ticker}` | GET    | Preço justo              |
-| `/quality/{ticker}`   | GET    | Quality score            |
-| `/analyze/{ticker}`   | GET    | Análise completa         |
-| `/compare`            | GET    | Comparar múltiplas ações |
+| Endpoint              | Método | Descrição                          |
+| --------------------- | ------ | ---------------------------------- |
+| `/health`             | GET    | Status da API                      |
+| `/valuation/{ticker}` | GET    | Preço justo (DCF + múltiplos)      |
+| `/quality/{ticker}`   | GET    | Quality score (0-100)              |
+| `/analyze/{ticker}`   | GET    | Valuation + quality + recomendação |
+| `/compare?tickers=`   | GET    | Compara até 10 ações lado a lado   |
 
-### Exemplo de uso
+**Tickers:** ações americanas usam o símbolo puro (`AAPL`, `MSFT`); ações brasileiras usam o sufixo `.SA` (`PETR4.SA`, `ITUB4.SA`).
+
+### `GET /health`
 
 ```bash
-# Análise completa
-curl http://localhost:8000/analyze/AAPL
-
-# Comparar ações
-curl "http://localhost:8000/compare?tickers=AAPL,MSFT,GOOGL"
+curl http://localhost:8000/health
 ```
 
-📖 **Documentação completa**: [API.md](API.md)
+```json
+{ "status": "healthy", "message": "API de análise fundamentalista está operacional" }
+```
+
+### `GET /valuation/{ticker}`
+
+```bash
+curl http://localhost:8000/valuation/AAPL
+```
+
+```json
+{
+  "ticker": "AAPL",
+  "dcf_value": 65.55,
+  "multiples_value": 174.4,
+  "fair_value": 119.97,
+  "buy_price": 71.98,
+  "current_price": 343.83
+}
+```
+
+### `GET /quality/{ticker}`
+
+```bash
+curl http://localhost:8000/quality/PETR4.SA
+```
+
+```json
+{
+  "ticker": "PETR4.SA",
+  "score": 76.0,
+  "interpretation": "⚠️ Liquidez baixa (Current Ratio: 0.85)",
+  "metrics": {
+    "roe": 0.30274,
+    "current_ratio": 0.854,
+    "debt_to_equity": 76.067,
+    "profit_margin": 0.24317,
+    "revenue_growth": 0.423
+  }
+}
+```
+
+### `GET /analyze/{ticker}`
+
+```bash
+curl http://localhost:8000/analyze/AAPL
+```
+
+```json
+{
+  "ticker": "AAPL",
+  "valuation": { "ticker": "AAPL", "dcf_value": 65.55, "multiples_value": 174.4, "fair_value": 119.97, "buy_price": 71.98, "current_price": 343.83 },
+  "quality": { "ticker": "AAPL", "score": 71.0, "interpretation": "⚠️ Sem histórico de dividendos recentes ou yield = 0", "metrics": { "...": "..." } },
+  "recommendation": "🟡 AGUARDE - Boa qualidade mas preço acima do justo"
+}
+```
+
+### `GET /compare`
+
+```bash
+curl "http://localhost:8000/compare?tickers=AAPL,MSFT,PETR4.SA"
+```
+
+```json
+{
+  "comparison": [
+    {
+      "ticker": "AAPL",
+      "company_name": "Apple Inc.",
+      "current_price": 343.83,
+      "fair_value": 119.97,
+      "buy_price": 71.98,
+      "quality_score": 71.0,
+      "discount_percent": -65.11
+    }
+  ]
+}
+```
+
+Tickers inválidos na comparação aparecem como `{"ticker": "XXX", "error": "Não encontrado"}` sem derrubar a requisição.
+
+### Erros
+
+| Status | Quando                                       | Exemplo de corpo                                  |
+| ------ | -------------------------------------------- | ------------------------------------------------- |
+| 404    | Ticker não existe                            | `{"detail": "Ticker 'XXX' não encontrado"}`       |
+| 400    | Falha ao calcular / erro do Yahoo Finance    | `{"detail": "<mensagem do erro>"}`                |
+| 422    | Parâmetro obrigatório ausente (`/compare`)   | validação do FastAPI                              |
+
+📖 Mais detalhes: [API.md](API.md)
+
+---
+
+## 🧪 Testes
+
+```bash
+# Score engine com múltiplas ações
+python test_new_score.py
+
+# Integração da API completa
+python test_api_integration.py
+```
+
+---
+
+## 🛠️ Troubleshooting
+
+### `ImportError: ... Library not loaded: /opt/homebrew/opt/openssl@3/lib/libssl.3.dylib`
+
+O Python instalado pelo pyenv foi compilado contra o `openssl@3` do Homebrew, e um `brew upgrade` o removeu (trocando por `openssl@4`). Sem SSL, nada que acesse a internet funciona (yfinance, pip). Corrija com:
+
+```bash
+brew install openssl@3
+```
+
+Ou recompile o Python: `pyenv uninstall 3.12.2 && pyenv install 3.12.2` (depois recrie o `.venv`).
+
+### `ModuleNotFoundError: No module named '...'`
+
+Dependências novas no `requirements.txt` que ainda não foram instaladas no venv:
+
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+No Docker: `docker compose up --build`.
+
+### `Address already in use` na porta 8000
+
+Outra aplicação já usa a porta. Rode em outra porta: `python -m uvicorn api:app --reload --port 8001`.
+
+### Requisições lentas / `Too Many Requests`
+
+Os dados vêm do Yahoo Finance a cada chamada. Muitas chamadas seguidas podem ser limitadas pelo Yahoo; aguarde alguns minutos.
+
+---
+
+## 📤 Publicar imagem
+
+```bash
+docker buildx build --platform=linux/arm64/v8 -t maykealisson/agent-fundament:{{VERSION}} .
+docker push maykealisson/agent-fundament:{{VERSION}}
+```
 
 ---
 
@@ -316,72 +495,6 @@ Quality Score: 72.5/100
 
 ---
 
-## 🚀 Uso Prático
-
-### Executar análise via CLI
-
-```bash
-python main.py
-```
-
-### Iniciar API REST
-
-```bash
-python -m uvicorn api:app --reload
-```
-
-Acesse a documentação interativa em: **http://localhost:8000/docs**
-
-### Testar com cliente Python
-
-```bash
-python client_example.py
-```
-
-### Testar novo sistema de score
-
-```bash
-# Teste direto do score engine com múltiplas ações
-python test_new_score.py
-
-# Teste de integração da API completa
-python test_api_integration.py
-```
-
----
-
-## 🏗️ Docker
-
-### Build local
-
-```bash
-docker build -t agent-fundament .
-docker run -p 8000:8000 agent-fundament
-```
-
-### Docker Compose (Recomendado)
-
-```bash
-docker-compose up
-```
-
-A API ficará disponível em: http://localhost:8000
-
-### Parar container
-
-```bash
-docker-compose down
-```
-
-### Gerar imagem para publicar
-
-```bash
-docker buildx build --platform=linux/arm64/v8 -t maykealisson/agent-fundament:{{VERSION}} .
-docker push maykealisson/agent-fundament:{{VERSION}}
-```
-
----
-
 ## 📚 Referências Conceituais
 
 - **DCF (Descounted Cash Flow)**: Benjamin Graham, "The Intelligent Investor"
@@ -402,8 +515,6 @@ docker push maykealisson/agent-fundament:{{VERSION}}
 - ✅ Análise de **20 trimestres** de profitabilidade
 - ✅ Avaliação de **tendências de crescimento**
 - ✅ Cálculo de **dividend yield** em 5 anos
-
-**Veja:** [IMPROVEMENTS.md](IMPROVEMENTS.md) para detalhes técnicos das mudanças.
 
 ---
 
